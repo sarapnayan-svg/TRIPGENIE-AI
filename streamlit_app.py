@@ -345,14 +345,19 @@ with st.container():
         # Row 3: Curated Destination Activities
         dest_key = dest_input.strip().lower()
         avail_activities = DESTINATION_ACTIVITIES.get(dest_key, GENERIC_ACTIVITIES)
-        act_choices = {f"{info['name']} (₹{info['cost_per_person']:,})": act_id for act_id, info in avail_activities.items()}
+        act_choices = {}
+        for act_id, info in avail_activities.items():
+            cost_val = int(info.get("cost", info.get("cost_per_person", 0)))
+            act_name = info.get("name", act_id.replace("_", " ").title())
+            cost_label = f"₹{cost_val:,}" if cost_val > 0 else "Free"
+            act_choices[f"{act_name} ({cost_label})"] = act_id
 
         selected_act_labels = st.multiselect(
             "🎯 Select Grounded Activities to Include:",
             options=list(act_choices.keys()),
             default=list(act_choices.keys())[:2] if len(act_choices) >= 2 else list(act_choices.keys())
         )
-        selected_act_ids = [act_choices[lbl] for lbl in selected_act_labels]
+        selected_act_ids = [act_choices[lbl] for lbl in selected_act_labels if lbl in act_choices]
 
         # Submit Button
         generate_submitted = st.form_submit_button("✨ Generate Grounded Itinerary", type="primary", use_container_width=True)
