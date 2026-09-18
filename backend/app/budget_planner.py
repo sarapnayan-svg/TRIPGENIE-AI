@@ -126,6 +126,8 @@ def calculate_trip_budget(
     transport_preference: str = "private_cab",
     selected_activities: Optional[List[str]] = None,
     travel_style: str = "balanced",
+    custom_hotel_rate: Optional[float] = None,
+    custom_hotel_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Calculate deterministic, itemized travel expenses across 5 categories.
@@ -140,18 +142,19 @@ def calculate_trip_budget(
 
     # 1. ACCOMMODATION CALCULATION
     hotel_tier = hotel_preference.lower() if hotel_preference in HOTEL_RATES_PER_ROOM_NIGHT else "standard"
-    base_hotel_rate = HOTEL_RATES_PER_ROOM_NIGHT[hotel_tier]
+    base_hotel_rate = float(custom_hotel_rate) if custom_hotel_rate is not None and custom_hotel_rate > 0 else HOTEL_RATES_PER_ROOM_NIGHT[hotel_tier]
+    hotel_label = f" ({custom_hotel_name})" if custom_hotel_name else ""
 
     if hotel_tier == "hostel":
         # Per person bed calculation
         accommodation_cost = round(base_hotel_rate * travelers * nights, 2)
         rooms_count = travelers
-        accommodation_note = f"₹{base_hotel_rate:,.0f}/bed/night × {travelers} beds × {nights} nights"
+        accommodation_note = f"₹{base_hotel_rate:,.0f}/bed/night × {travelers} beds × {nights} nights{hotel_label}"
     else:
         # 2 travelers per room standard
         rooms_count = math.ceil(travelers / 2.0)
         accommodation_cost = round(base_hotel_rate * rooms_count * nights, 2)
-        accommodation_note = f"₹{base_hotel_rate:,.0f}/room/night × {rooms_count} rooms × {nights} nights"
+        accommodation_note = f"₹{base_hotel_rate:,.0f}/room/night × {rooms_count} rooms × {nights} nights{hotel_label}"
 
     # 2. FOOD CALCULATION
     style_key = travel_style.lower() if travel_style in FOOD_RATES_PER_PERSON_DAY else "balanced"

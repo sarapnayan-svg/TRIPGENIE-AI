@@ -5,6 +5,7 @@ Features identical layout and visual richness to the React Localhost Dashboard.
 """
 import os
 import sys
+import math
 from pathlib import Path
 import pandas as pd
 
@@ -514,6 +515,8 @@ if "travel_style" not in st.session_state:
     st.session_state["travel_style"] = "balanced"
 if "hotel_tier" not in st.session_state:
     st.session_state["hotel_tier"] = "standard"
+if "selected_hotel_id" not in st.session_state:
+    st.session_state["selected_hotel_id"] = None
 if "transport_pref" not in st.session_state:
     st.session_state["transport_pref"] = "private_cab"
 if "trip_plan" not in st.session_state:
@@ -613,6 +616,7 @@ for d_name, d_label, d_sub, d_col in d_btns:
         if st.button(f"{btn_caption}\n{d_sub}", type=btn_type, use_container_width=True, key=f"quick_dest_{d_name}"):
             if st.session_state["destination"] != d_name:
                 st.session_state["destination"] = d_name
+                st.session_state["selected_hotel_id"] = None
                 st.session_state["trip_plan"] = None
                 st.rerun()
 
@@ -667,6 +671,30 @@ with st.container():
             trans_idx = transports.index(st.session_state["transport_pref"]) if st.session_state["transport_pref"] in transports else 2
             trans_input = st.selectbox("🚗 Transport Mode", transports, index=trans_idx)
 
+        # Row 2.5: Specific Hotel Property Selection for selected destination
+        dest_hotels = [h for h in VERIFIED_HOTELS if h["destination"].lower() == dest_input.strip().lower()]
+        hotel_select_map = {f"✨ Auto-Recommend Best Verified Property ({tier_input.capitalize()} Tier)": None}
+        for h in dest_hotels:
+            t_tag = h['tier'].upper()
+            h_opt_label = f"{h['name']} • ₹{int(h['price_per_night']):,}/night • ⭐ {h['rating']} ({h['area']}) [{t_tag}]"
+            hotel_select_map[h_opt_label] = h["id"]
+
+        cur_h_id = st.session_state.get("selected_hotel_id")
+        h_idx = 0
+        if cur_h_id:
+            for i, (lbl, hid) in enumerate(hotel_select_map.items()):
+                if hid == cur_h_id:
+                    h_idx = i
+                    break
+
+        selected_hotel_choice = st.selectbox(
+            f"🏨 Choose Your Hotel Stay in {dest_input} ({len(dest_hotels)} Options Available with Live Photos):",
+            options=list(hotel_select_map.keys()),
+            index=h_idx,
+            help="Select the exact hotel of your choice from our verified database with authentic photos and rates."
+        )
+        form_chosen_hotel_id = hotel_select_map[selected_hotel_choice]
+
         # Row 3: Curated Destination Activities
         dest_key = dest_input.strip().lower()
         avail_activities = DESTINATION_ACTIVITIES.get(dest_key, GENERIC_ACTIVITIES)
@@ -696,6 +724,11 @@ with st.container():
         st.session_state["travel_style"] = style_input
         st.session_state["hotel_tier"] = tier_input
         st.session_state["transport_pref"] = trans_input
+        st.session_state["selected_hotel_id"] = form_chosen_hotel_id
+        if form_chosen_hotel_id:
+            chosen_obj = next((h for h in VERIFIED_HOTELS if h["id"] == form_chosen_hotel_id), None)
+            if chosen_obj:
+                st.session_state["hotel_tier"] = chosen_obj["tier"]
         st.session_state["trip_plan"] = None
         if dest_changed:
             st.rerun()
@@ -708,6 +741,11 @@ active_budget = st.session_state["budget"]
 active_style = st.session_state["travel_style"]
 active_tier = st.session_state["hotel_tier"]
 active_trans = st.session_state["transport_pref"]
+
+active_hotel_id = st.session_state.get("selected_hotel_id")
+active_hotel_obj = None
+if active_hotel_id:
+    active_hotel_obj = next((h for h in VERIFIED_HOTELS if h["id"] == active_hotel_id and h["destination"].lower() == active_dest.lower()), None)
 
 if generate_submitted or st.session_state["trip_plan"] is None:
     if not BACKEND_LOADED:
@@ -765,6 +803,24 @@ with tab_itinerary:
             )
         except Exception:
             pass
+
+    if active_hotel_obj:
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%); border:1.5px solid #86EFAC; border-radius:16px; padding:16px; margin-bottom:20px; box-shadow:0 4px 15px rgba(16,185,129,0.06);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                <span style="background:#059669; color:white; font-size:0.75rem; font-weight:800; padding:3px 10px; border-radius:9999px;">CONFIRMED ACCOMMODATION PARTNER</span>
+                <span style="color:#047857; font-weight:700; font-size:0.85rem;">{active_hotel_obj['tier'].upper()} TIER</span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center;">
+                <img src="{active_hotel_obj['image_url']}" style="width:140px; height:95px; object-fit:cover; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+                <div style="flex:1; min-width:240px;">
+                    <h4 style="margin:0 0 4px 0; color:#0F172A; font-size:1.1rem;">{active_hotel_obj['name']}</h4>
+                    <p style="margin:0 0 4px 0; color:#64748B; font-size:0.85rem;">📍 {active_hotel_obj['area']}, {active_hotel_obj['destination']} • ⭐ <b>{active_hotel_obj['rating']}/5.0</b> ({active_hotel_obj['reviews_count']:,} reviews)</p>
+                    <p style="margin:0; color:#0284C7; font-weight:800; font-size:1rem;">₹{int(active_hotel_obj['price_per_night']):,} <span style="font-size:0.8rem; font-weight:500; color:#64748B;">/ night • Total for {active_days} days: ₹{int(active_hotel_obj['price_per_night'] * max(1, math.ceil(active_travelers/2.0)) * (active_days - 1 if active_days > 1 else 1)):,}</span></p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     for d in trip.get("days", []):
         day_num = d.get("day", 1)
@@ -959,6 +1015,8 @@ with tab_budget:
         transport_preference=active_trans,
         selected_activities=selected_act_ids if 'selected_act_ids' in locals() else [],
         travel_style=active_style,
+        custom_hotel_rate=active_hotel_obj["price_per_night"] if active_hotel_obj else None,
+        custom_hotel_name=active_hotel_obj["name"] if active_hotel_obj else None,
     )
 
     m1, m2, m3, m4 = st.columns(4)
@@ -980,39 +1038,124 @@ with tab_budget:
 
 # ==================== TAB 4: VERIFIED HOTELS ====================
 with tab_hotels:
-    st.markdown(f"### 🏨 Verified Hotel Intelligence in {active_dest}")
+    st.markdown(f"### 🏨 Verified Hotel Intelligence & Selection Portal: {active_dest}")
+    st.caption(f"Browse authentic, verified properties across all tiers in {active_dest} with live photography, verified guest ratings, and direct booking links. Select your favorite hotel to lock it into your trip plan and budget.")
+
+    # Active Selection Banner
+    if active_hotel_obj:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 2px solid #10B981; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <span style="background:#059669; color:white; font-size:0.75rem; font-weight:800; padding:3px 10px; border-radius:9999px; text-transform:uppercase;">Active Itinerary Selection</span>
+                    <h3 style="margin:6px 0 2px 0; color:#065F46; font-size:1.25rem;">🏨 {active_hotel_obj['name']}</h3>
+                    <p style="margin:0; color:#047857; font-size:0.88rem;">📍 {active_hotel_obj['area']} • <b>{active_hotel_obj['tier'].capitalize()} Tier</b> • ⭐ {active_hotel_obj['rating']}/5.0 • <b>₹{int(active_hotel_obj['price_per_night']):,}/night</b></p>
+                </div>
+                <div>
+                    <a href="{active_hotel_obj.get('booking_url', '#')}" target="_blank" style="background:#059669; color:white; padding:8px 16px; border-radius:10px; text-decoration:none; font-weight:700; font-size:0.85rem; display:inline-block;">Reserve on Google Travel ↗</a>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Interactive Filter Controls
+    f_col1, f_col2, f_col3 = st.columns([1.5, 1.5, 1.2])
+    with f_col1:
+        tier_options = [
+            "All Tiers (Show All 16+ Hotels)",
+            "Hostel (₹600 - ₹950)",
+            "Budget (₹1,900 - ₹3,200)",
+            "Standard (₹3,200 - ₹4,800)",
+            "Premium (₹6,800 - ₹9,800)",
+            "Luxury (₹11,000 - ₹35,000)"
+        ]
+        tier_mapping = {
+            "All Tiers (Show All 16+ Hotels)": "all",
+            "Hostel (₹600 - ₹950)": "hostel",
+            "Budget (₹1,900 - ₹3,200)": "budget",
+            "Standard (₹3,200 - ₹4,800)": "standard",
+            "Premium (₹6,800 - ₹9,800)": "premium",
+            "Luxury (₹11,000 - ₹35,000)": "luxury"
+        }
+        def_tier_idx = 0
+        for idx, (t_lbl, t_val) in enumerate(tier_mapping.items()):
+            if t_val == active_tier:
+                def_tier_idx = idx
+                break
+        selected_tier_label = st.selectbox("🏷️ Filter by Hotel Preference / Tier:", tier_options, index=def_tier_idx, key="hotel_tab_tier_filter")
+        chosen_tier_filter = tier_mapping[selected_tier_label]
+
+    with f_col2:
+        all_dest_hotels = [h for h in VERIFIED_HOTELS if h["destination"].lower() == active_dest.lower()]
+        distinct_areas = sorted(list(set(h["area"] for h in all_dest_hotels)))
+        area_options = ["All Areas & Neighborhoods"] + distinct_areas
+        selected_area_choice = st.selectbox("📍 Filter by Area / Neighborhood:", area_options, index=0, key="hotel_tab_area_filter")
+        chosen_area_filter = None if selected_area_choice == "All Areas & Neighborhoods" else selected_area_choice
+
+    with f_col3:
+        sort_options = ["⭐ Recommended", "💰 Price: Low to High", "💎 Price: High to Low", "⭐ Highest Rating"]
+        sort_mapping = {
+            "⭐ Recommended": "recommended",
+            "💰 Price: Low to High": "price_asc",
+            "💎 Price: High to Low": "price_desc",
+            "⭐ Highest Rating": "rating"
+        }
+        selected_sort_choice = st.selectbox("🔃 Sort By:", sort_options, index=0, key="hotel_tab_sort_filter")
+        chosen_sort = sort_mapping[selected_sort_choice]
+
     hotels_res = recommend_hotels(
         destination=active_dest,
         budget=active_budget,
         travelers=active_travelers,
         duration=active_days,
-        tier=active_tier,
-        sort_by="recommended"
+        preferred_area=chosen_area_filter,
+        tier=chosen_tier_filter if chosen_tier_filter != "all" else None,
+        sort_by=chosen_sort
     )
     hotels = hotels_res.get("hotels", [])
 
+    st.markdown(f"<p style='color:#64748B; font-size:0.9rem; margin-bottom:16px;'>Found <b>{len(hotels)} verified properties</b> in {active_dest} matching criteria with live high-res photography:</p>", unsafe_allow_html=True)
+
     if hotels:
-        h_cols = st.columns(min(3, len(hotels)))
-        for idx, hotel in enumerate(hotels[:6]):
+        h_cols = st.columns(3)
+        for idx, hotel in enumerate(hotels):
             col = h_cols[idx % 3]
             with col:
-                img_url = hotel.get('image_url') or "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80"
-                st.image(img_url, use_container_width=True)
+                is_selected = (st.session_state.get("selected_hotel_id") == hotel["id"])
+                card_border = "border: 2px solid #10B981;" if is_selected else "border: 1px solid #E2E8F0;"
+                
+                st.image(hotel.get('image_url') or "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80", use_container_width=True)
+                
                 st.markdown(f"""
-                <div class="hotel-box">
-                    <h4 style="margin:0 0 6px 0;">{hotel.get('name')}</h4>
-                    <p style="color:#64748B; font-size:0.85rem; margin-bottom:6px;">📍 {hotel.get('area', active_dest)} • <b>{hotel.get('tier', 'standard').capitalize()}</b></p>
-                    <p style="margin-bottom:6px;">⭐ <b>{hotel.get('rating', 4.5)}/5.0</b> ({hotel.get('reviews_count', 1200):,} reviews)</p>
-                    <p style="color:#0284C7; font-size:1.1rem; font-weight:700; margin-bottom:8px;">₹{hotel.get('price_per_night', 3500):,} / night</p>
-                    <p style="font-size:0.8rem; color:#475569;"><em>{hotel.get('curator_note', '')}</em></p>
+                <div class="hotel-box" style="{card_border}">
+                    {'<span style="background:#059669; color:white; font-size:0.7rem; font-weight:800; padding:2px 8px; border-radius:9999px; float:right;">SELECTED STAY</span>' if is_selected else ''}
+                    <span class="tag-badge" style="background:#E0F2FE; color:#0369A1; font-weight:700;">{hotel['tier'].upper()}</span>
+                    <h4 style="margin:6px 0 4px 0; font-size:1.02rem; color:#0F172A;">{hotel.get('name')}</h4>
+                    <p style="color:#64748B; font-size:0.82rem; margin-bottom:4px;">📍 {hotel.get('area')} • <b>⭐ {hotel.get('rating', 4.5)}/5.0</b> ({hotel.get('reviews_count', 1200):,} reviews)</p>
+                    <p style="color:#0284C7; font-size:1.15rem; font-weight:800; margin:6px 0 2px 0;">₹{int(hotel.get('price_per_night', 3500)):,} <span style="font-size:0.8rem; font-weight:500; color:#64748B;">/ night</span></p>
+                    <p style="color:#059669; font-size:0.8rem; font-weight:600; margin-bottom:6px;">Total Stay Est: ₹{int(hotel.get('total_stay_estimated', hotel.get('price_per_night', 3500)*active_days)):,} ({active_days} days)</p>
+                    <p style="font-size:0.8rem; color:#475569; line-height:1.4; margin-bottom:8px;"><em>{hotel.get('curator_note', '')}</em></p>
                 </div>
                 """, unsafe_allow_html=True)
+                
                 amenities = hotel.get("amenities", [])[:3]
                 for am in amenities:
                     st.markdown(f"<span class='tag-badge'>✓ {am}</span>", unsafe_allow_html=True)
+                
+                st.write("")
+                if is_selected:
+                    st.button("✅ Currently Selected Hotel", key=f"btn_h_{hotel['id']}", type="primary", disabled=True, use_container_width=True)
+                else:
+                    if st.button("🏨 Select This Hotel", key=f"btn_h_{hotel['id']}", type="secondary", use_container_width=True):
+                        st.session_state["selected_hotel_id"] = hotel["id"]
+                        st.session_state["hotel_tier"] = hotel["tier"]
+                        st.session_state["trip_plan"] = None
+                        st.rerun()
+                
+                st.markdown(f"<p style='text-align:center; margin-top:4px;'><a href='{hotel.get('booking_url', '#')}' target='_blank' style='font-size:0.8rem; color:#0284C7; text-decoration:none;'>Google Travel Rates & Reviews ↗</a></p>", unsafe_allow_html=True)
                 st.write("")
     else:
-        st.info("No hotels matched your exact filters. Showing destination catalog properties.")
+        st.info("No hotels matched your exact filters. Try adjusting the tier or area filter above.")
 
 # ==================== TAB 5: LIVE WEATHER ====================
 with tab_weather:
