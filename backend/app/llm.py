@@ -180,6 +180,12 @@ When the user asks to:
 - Adjust or reduce budget (e.g. "Reduce my budget to ₹70,000"): Outline how to rebalance accommodation, activities, and dining.
 
 Keep answers well-structured with clear bullet points, warm conversational tone, and concise actionable recommendations (under 180 words).
+
+CRITICAL LANGUAGE RULE:
+Always respond in the EXACT same language and script as the user's message.
+- If the user asks in English (e.g. "Tell me about Manali", "Which hotel is closest?"), you MUST respond entirely in pure, professional English.
+- If the user asks in Marathi (Devanagari or Romanized Marathi), respond in Marathi.
+- Never output Marathi when the question was asked in English.
 """
 
 
@@ -517,20 +523,36 @@ def _rag_grounded_fallback_chat(message: str, trip_context: Dict, context_chunks
         },
     }
 
+    # Detect language of user question: Devanagari or Roman Marathi vs English
+    is_marathi = any('\u0900' <= ch <= '\u097f' for ch in message) or any(
+        re.search(rf"\b{w}\b", q) for w in ["baddal", "sang", "sanga", "mahiti", "kasa", "kashi", "aahe", "ahe", "kay", "pahije", "vicharla", "madhe", "kiti"]
+    )
+
     # If the user is asking about a destination or general information:
     is_dest_inquiry = detected_dest is not None or any(w in q for w in ["baddal", "about", "information", "mahiti", "places", "sights", "visit", "kasa aahe", "kay aahe", "tell me", "what is"])
     if dest_lower in DEST_PROFILES and (is_dest_inquiry or len(q.split()) <= 4):
         prof = DEST_PROFILES[dest_lower]
         sights_bullet = "\n".join(f"• {s}" for s in prof["attractions"])
-        return (
-            f"### 📍 {prof['title']}\n"
-            f"*{prof['tagline']}*\n\n"
-            f"**प्रमुख आकर्षणे (Top Sights):**\n{sights_bullet}\n\n"
-            f"🏄 **ॲडव्हेंचर & ॲक्टिव्हिटी:** {prof['adventures']}\n\n"
-            f"🍲 **स्थानिक खाद्यसंस्कृती (Must-Try Food):** {prof['food']}\n\n"
-            f"☀️ **भेट देण्यासाठी उत्तम काळ (Best Time to Visit):** {prof['best_time']}\n\n"
-            f"तुम्हाला {dest_clean} च्या बजेट, हॉटेल किंवा दिवसांच्या नियोजनाबद्दल काहीही विचारू शकता!"
-        )
+        if is_marathi:
+            return (
+                f"### 📍 {prof['title']}\n"
+                f"*{prof['tagline']}*\n\n"
+                f"**प्रमुख आकर्षणे:**\n{sights_bullet}\n\n"
+                f"🏄 **ॲडव्हेंचर & ॲक्टिव्हिटी:** {prof['adventures']}\n\n"
+                f"🍲 **स्थानिक खाद्यसंस्कृती:** {prof['food']}\n\n"
+                f"☀️ **भेट देण्यासाठी उत्तम काळ:** {prof['best_time']}\n\n"
+                f"तुम्हाला {dest_clean} च्या बजेट, हॉटेल किंवा दिवसांच्या नियोजनाबद्दल काहीही विचारू शकता!"
+            )
+        else:
+            return (
+                f"### 📍 {prof['title']}\n"
+                f"*{prof['tagline']}*\n\n"
+                f"**Top Attractions & Sights:**\n{sights_bullet}\n\n"
+                f"🏄 **Adventures & Activities:** {prof['adventures']}\n\n"
+                f"🍲 **Local Cuisine & Food:** {prof['food']}\n\n"
+                f"☀️ **Best Time to Visit:** {prof['best_time']}\n\n"
+                f"Feel free to ask me for custom day itineraries, budget optimization, or hotel recommendations for {dest_clean}!"
+            )
 
     # 1. Intent: "Make Day X cheaper" / "Cheaper day"
     day_match = re.search(r"day\s*(\d+)", q)
