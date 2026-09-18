@@ -186,6 +186,15 @@ Keep answers well-structured with clear bullet points, warm conversational tone,
 
 def chat_response(message: str, trip_context: Dict, context_chunks: List[Dict],
                    history: List[Dict]) -> str:
+    # Dynamically detect if message mentions a specific destination (e.g. Manali, Kerala, Jaipur)
+    q = message.lower()
+    for kd in ["manali", "kerala", "jaipur", "rishikesh", "goa"]:
+        if kd in q:
+            if not trip_context or trip_context.get("destination", "").lower() != kd:
+                trip_context = dict(trip_context or {})
+                trip_context["destination"] = kd.capitalize()
+            break
+
     context = _format_context(context_chunks)
     trip_summary = json.dumps(trip_context, ensure_ascii=False)
 
@@ -412,13 +421,116 @@ def _rag_grounded_fallback_chat(message: str, trip_context: Dict, context_chunks
     Understands intent, checks active trip context, and crafts grounded responses
     for trip optimization, budgeting, activity replacement, and dining.
     """
-    dest = (trip_context or {}).get("destination", "Goa")
-    dest_clean = (dest or "Goa").strip()
-    dest_lower = dest_clean.lower()
     q = message.lower()
+
+    # 1. Detect if the user is asking about a specific destination
+    KNOWN_DESTINATIONS = ["manali", "kerala", "jaipur", "rishikesh", "goa"]
+    detected_dest = None
+    for kd in KNOWN_DESTINATIONS:
+        if kd in q:
+            detected_dest = kd.capitalize()
+            break
+
+    # If the user explicitly asks about another destination, switch context to it
+    if detected_dest:
+        dest_clean = detected_dest
+    else:
+        dest = (trip_context or {}).get("destination", "Goa")
+        dest_clean = (dest or "Goa").strip().capitalize()
+
+    dest_lower = dest_clean.lower()
     days_list = (trip_context or {}).get("days", [])
     user_budget = (trip_context or {}).get("budget", 50000)
     travelers = (trip_context or {}).get("travelers", 2)
+
+    # 0. Intent: Destination Inquiry / Overview (e.g. "Manali baddal sang", "Tell me about Manali")
+    DEST_PROFILES = {
+        "manali": {
+            "title": "Manali (Himachal Pradesh) 🏔️",
+            "tagline": "Himalayan valley of snow peaks, cedar forests, adventure sports & riverside cafes.",
+            "attractions": [
+                "**Solang Valley:** Premier hub for tandem paragliding, zorbing, and ropeways against snow peaks.",
+                "**Hadimba Devi Temple:** 1553-built 4-tiered pagoda wooden temple set inside tranquil cedar woods.",
+                "**Atal Tunnel & Sissu Waterfall:** World's longest highway tunnel above 10,000 ft connecting to Lahaul's glacial waterfalls.",
+                "**Jogini Waterfall Pine Trek:** Scenic 1-hour mountain hike through pine woods and apple orchards.",
+                "**Old Manali & Mall Road:** Bohemian cafes, live acoustic music, local woollens, and Tibetan craft markets."
+            ],
+            "adventures": "Tandem Paragliding at Solang (₹2,500), White-Water Rafting on Beas River (₹1,200), Atal Tunnel & Sissu Tour (₹1,200).",
+            "food": "Steaming hot Tibetan Momos, Siddu with ghee & dal, Thukpa soup, and trout fish fry.",
+            "best_time": "October to February for snowfall and winter sports; March to June for pleasant outdoor weather.",
+        },
+        "goa": {
+            "title": "Goa (Coastal Paradise) 🏖️",
+            "tagline": "Golden beaches, UNESCO Portuguese heritage churches, lively nightlife & coastal seafood.",
+            "attractions": [
+                "**Baga & Calangute Coast:** Water sports, lively shacks, sunset parasailing, and beach dining.",
+                "**Fort Aguada & Lighthouse:** 17th-century Portuguese coastal fortress overlooking the Arabian Sea.",
+                "**Basilica of Bom Jesus:** UNESCO World Heritage monument holding sacred relics in Old Goa.",
+                "**Palolem Beach & Butterfly Island:** Crescent-shaped serene white-sand bay in South Goa.",
+                "**Dudhsagar Waterfalls:** Majestic 4-tiered cascade plunging 310 meters along the Western Ghats."
+            ],
+            "adventures": "Grande Island Scuba Diving (₹2,500), 5-in-1 Beach Water Sports Combo (₹1,500), Mandovi Sunset Cruise (₹500).",
+            "food": "Goan Fish Curry Rice, Prawn Balchao, Bebinca coconut dessert, and Kingfish Rawa Fry.",
+            "best_time": "November to February for pleasant beach weather, water sports, and sunset cruises.",
+        },
+        "kerala": {
+            "title": "Kerala (God's Own Country) 🌴",
+            "tagline": "Emerald backwater lagoons, mist-covered tea gardens & authentic Ayurvedic rejuvenation.",
+            "attractions": [
+                "**Alleppey Backwaters:** Traditional thatched Kettuvallam houseboats cruising serene canals.",
+                "**Munnar Tea Gardens:** Vast rolling emerald tea estates and Tata Tea Museum in the Western Ghats.",
+                "**Fort Kochi Heritage:** Historic cantilevered Chinese Fishing Nets and Portuguese colonial lanes.",
+                "**Eravikulam National Park:** High-altitude sanctuary for the endangered Nilgiri Tahr mountain goat.",
+                "**Varkala Cliff Beach:** Red laterite cliffs bordering the Arabian Sea with seaside cafes."
+            ],
+            "adventures": "Overnight Houseboat Cruise (₹3,000), Shikara Canoe Ride on Vembanad Lake (₹600), Kathakali Dance Show (₹500).",
+            "food": "Traditional Kerala Sadhya served on banana leaf, Appam with coconut stew, Karimeen Pollichathu.",
+            "best_time": "September to March for calm backwaters, pleasant hill-station breezes, and clear skies.",
+        },
+        "jaipur": {
+            "title": "Jaipur (The Pink City) 🏰",
+            "tagline": "Majestic Rajputana hill forts, royal palaces, ornate courtyards & vibrant heritage bazaars.",
+            "attractions": [
+                "**Amber Fort:** Magnificent hilltop palace complex overlooking Maota Lake with Sheesh Mahal mirror work.",
+                "**Hawa Mahal:** Iconic 1799 pink sandstone facade featuring 953 honeycombed jharokhas.",
+                "**City Palace & Jantar Mantar:** Royal museum residence and UNESCO 18th-century astronomical observatory.",
+                "**Nahargarh Fort Sunset:** Panoramic hill ramparts offering breathtaking sunsets over the Pink City.",
+                "**Chokhi Dhani:** Authentic Rajasthani cultural village with folk dances, camel rides, and feasts."
+            ],
+            "adventures": "Guided Amber Fort Tour (₹500), City Palace Royal Walk (₹700), Johari Bazaar Textile Walk (₹200).",
+            "food": "Authentic Dal Baati Churma, Rawat Pyaz Kachori, Mawa Kachori, and rich saffron lassi.",
+            "best_time": "October to March for cool, pleasant sightseeing weather and royal cultural festivals.",
+        },
+        "rishikesh": {
+            "title": "Rishikesh (Yoga & Adrenaline Capital) 🧘‍♂️",
+            "tagline": "Sacred Ganges riverbanks, Himalayan foothills, world-class river rafting & spiritual ashrams.",
+            "attractions": [
+                "**Triveni Ghat Evening Maha Aarti:** Soul-stirring twilight Ganga Aarti with floating diyas and chanting.",
+                "**The Beatles Ashram (Chaurasi Kutia):** Historic 1968 meditation retreat filled with graffiti and murals.",
+                "**Ram Jhula & Laxman Jhula:** Iconic iron suspension bridges spanning the turquoise Ganges.",
+                "**Neer Garh Waterfall Hike:** Multi-tiered mountain cascade with natural plunge pools.",
+                "**Neelkanth Mahadev Temple:** Sacred mountain shrine set at 1,330 meters amidst deep valleys."
+            ],
+            "adventures": "16km Shivpuri White-Water River Rafting (₹1,200), Mohan Chatti 83m Bungee Jump (₹3,500), Waterfall Treks.",
+            "food": "Chotiwala Pure Veg Garhwali Thali, organic vegan smoothie bowls, and wood-fired pizzas by the river.",
+            "best_time": "September to November and February to May for exhilarating river rafting and pleasant weather.",
+        },
+    }
+
+    # If the user is asking about a destination or general information:
+    is_dest_inquiry = detected_dest is not None or any(w in q for w in ["baddal", "about", "information", "mahiti", "places", "sights", "visit", "kasa aahe", "kay aahe", "tell me", "what is"])
+    if dest_lower in DEST_PROFILES and (is_dest_inquiry or len(q.split()) <= 4):
+        prof = DEST_PROFILES[dest_lower]
+        sights_bullet = "\n".join(f"• {s}" for s in prof["attractions"])
+        return (
+            f"### 📍 {prof['title']}\n"
+            f"*{prof['tagline']}*\n\n"
+            f"**प्रमुख आकर्षणे (Top Sights):**\n{sights_bullet}\n\n"
+            f"🏄 **ॲडव्हेंचर & ॲक्टिव्हिटी:** {prof['adventures']}\n\n"
+            f"🍲 **स्थानिक खाद्यसंस्कृती (Must-Try Food):** {prof['food']}\n\n"
+            f"☀️ **भेट देण्यासाठी उत्तम काळ (Best Time to Visit):** {prof['best_time']}\n\n"
+            f"तुम्हाला {dest_clean} च्या बजेट, हॉटेल किंवा दिवसांच्या नियोजनाबद्दल काहीही विचारू शकता!"
+        )
 
     # 1. Intent: "Make Day X cheaper" / "Cheaper day"
     day_match = re.search(r"day\s*(\d+)", q)

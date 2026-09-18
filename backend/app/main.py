@@ -215,16 +215,31 @@ def chat(req: ChatRequest):
             detail="Chat message cannot be empty.",
         )
 
-    destination = (req.trip or {}).get("destination", "").strip()
-    search_query = f"{destination} {req.message.strip()}" if destination and destination.lower() not in req.message.lower() else req.message.strip()
-    chunks = rag_engine.retrieve(search_query, destination=destination, k=5)
+    msg_clean = req.message.strip()
+    msg_lower = msg_clean.lower()
+    trip_dest = (req.trip or {}).get("destination", "").strip()
+
+    # Dynamically detect if user is asking about a specific destination (e.g. Manali, Kerala, Jaipur)
+    detected_dest = None
+    for kd in ["Manali", "Kerala", "Jaipur", "Rishikesh", "Goa"]:
+        if kd.lower() in msg_lower:
+            detected_dest = kd
+            break
+
+    target_dest = detected_dest or trip_dest or None
+    search_query = msg_clean if (target_dest and target_dest.lower() in msg_lower) else (f"{target_dest} {msg_clean}" if target_dest else msg_clean)
+    chunks = rag_engine.retrieve(search_query, destination=target_dest, k=5)
 
     history = [{"role": m.role, "content": m.content} for m in req.history]
 
+    active_trip = dict(req.trip or {})
+    if target_dest:
+        active_trip["destination"] = target_dest
+
     try:
         reply = chat_response(
-            message=req.message.strip(),
-            trip_context=req.trip or {},
+            message=msg_clean,
+            trip_context=active_trip,
             context_chunks=chunks,
             history=history,
         )

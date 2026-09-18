@@ -649,10 +649,27 @@ with tab_chat:
 
         with st.chat_message("assistant"):
             with st.spinner("Searching RAG knowledge base..."):
-                chat_chunks = rag_engine.retrieve(f"{active_dest} {prompt}", destination=active_dest, k=4)
+                # Detect if user asks about a specific destination (e.g. Manali, Kerala, Jaipur, Rishikesh, Goa)
+                p_lower = prompt.lower()
+                query_dest = None
+                for d_name in ["Manali", "Kerala", "Jaipur", "Rishikesh", "Goa"]:
+                    if d_name.lower() in p_lower:
+                        query_dest = d_name
+                        break
+
+                target_dest = query_dest or active_dest
+
+                # Retrieve chunks for the targeted destination
+                chat_chunks = rag_engine.retrieve(prompt, destination=target_dest, k=5)
+
+                # Formulate target trip context
+                chat_trip_context = dict(trip or {}) if (target_dest == active_dest and trip) else {"destination": target_dest}
+                if target_dest:
+                    chat_trip_context["destination"] = target_dest
+
                 reply = chat_response(
                     message=prompt,
-                    trip_context=trip,
+                    trip_context=chat_trip_context,
                     context_chunks=chat_chunks,
                     history=st.session_state.chat_messages[:-1]
                 )
