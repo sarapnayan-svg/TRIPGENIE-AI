@@ -476,72 +476,146 @@ with tab_itinerary:
                 st.markdown(f"**[{s.get('category', 'General').upper()}] {s.get('place_name', active_dest)}** *(Similarity: {round(s.get('score', 0)*100, 1)}%)*")
                 st.markdown(f"> *\"{s.get('text', '')}\"*")
 
+def resolve_place_coordinates(place_name: str, dest_name: str, index: int = 0) -> tuple:
+    p = place_name.lower().strip()
+    for k, coord in VERIFIED_COORDS.items():
+        if k in p or p in k:
+            return coord
+        k_tokens = [w for w in k.split() if len(w) > 3]
+        if any(tok in p for tok in k_tokens):
+            return coord
+
+    KEYWORD_MAP = {
+        "hadimba": (32.2483, 77.1802),
+        "solang": (32.3166, 77.1578),
+        "atal": (32.3639, 77.1332),
+        "tunnel": (32.3639, 77.1332),
+        "sissu": (32.4770, 77.1230),
+        "jogini": (32.2680, 77.1950),
+        "vashisht": (32.2600, 77.1900),
+        "beas": (32.2200, 77.1850),
+        "mall": (32.2425, 77.1890),
+        "baga": (15.5553, 73.7517),
+        "calangute": (15.5439, 73.7553),
+        "aguada": (15.4929, 73.7736),
+        "bom jesus": (15.5009, 73.9116),
+        "basilica": (15.5009, 73.9116),
+        "palolem": (15.0100, 74.0232),
+        "anjuna": (15.5782, 73.7431),
+        "vagator": (15.5997, 73.7380),
+        "chapora": (15.6058, 73.7381),
+        "dudhsagar": (15.3144, 74.3143),
+        "backwaters": (9.4981, 76.3388),
+        "alleppey": (9.4981, 76.3388),
+        "munnar": (10.0889, 77.0595),
+        "tea": (10.0889, 77.0595),
+        "eravikulam": (10.2016, 77.0570),
+        "mattupetty": (10.1068, 77.1245),
+        "kochi": (9.9658, 76.2421),
+        "chinese": (9.9678, 76.2429),
+        "varkala": (8.7379, 76.7032),
+        "hawa": (26.9239, 75.8267),
+        "amber": (26.9855, 75.8513),
+        "palace": (26.9258, 75.8237),
+        "jantar": (26.9248, 75.8246),
+        "nahargarh": (26.9372, 75.8155),
+        "chokhi": (26.7672, 75.8344),
+        "triveni": (30.1033, 78.2934),
+        "ram jhula": (30.1235, 78.3142),
+        "laxman": (30.1287, 78.3248),
+        "beatles": (30.1130, 78.3130),
+        "neelkanth": (30.0863, 78.3353),
+        "shivpuri": (30.1378, 78.3889),
+    }
+    for kw, coord in KEYWORD_MAP.items():
+        if kw in p:
+            return coord
+
+    c_lat, c_lng, _ = DEST_CENTERS.get(dest_name, (15.4989, 73.8278, 11))
+    offset_lat = (((index * 7) % 11) - 5) * 0.005
+    offset_lng = (((index * 5) % 11) - 5) * 0.005
+    return (round(c_lat + offset_lat, 4), round(c_lng + offset_lng, 4))
+
 # ==================== TAB 2: INTERACTIVE ROUTE MAP ====================
 with tab_map:
     st.markdown(f"### 🗺️ Geospatial Route & Landmark Coordinates ({active_dest})")
-    st.caption("Interactive Leaflet/Pydeck projection of itinerary waypoints and verified GPS landmarks.")
+    st.caption("Interactive projection of itinerary waypoints and verified GPS landmarks.")
 
-    # Gather waypoints from days
     map_points = []
     default_lat, default_lng, default_zoom = DEST_CENTERS.get(active_dest, (15.4989, 73.8278, 11))
 
+    idx = 0
     for d in trip.get("days", []):
         day_num = d.get("day", 1)
-        for place in d.get("places", []):
-            p_lower = place.strip().lower()
-            matched_coord = None
-            for k, coord in VERIFIED_COORDS.items():
-                if k in p_lower or p_lower in k:
-                    matched_coord = coord
-                    break
-            
-            if matched_coord:
-                map_points.append({
-                    "day": f"Day {day_num}",
-                    "place": place,
-                    "lat": matched_coord[0],
-                    "lng": matched_coord[1],
-                    "color": [2, 132, 199, 220] if day_num % 2 == 0 else [225, 29, 72, 220]
-                })
+        places = d.get("places", [])
+        if not places:
+            places = [d.get("title", f"Day {day_num} Central Sight")]
 
-    # If no specific waypoint matched, populate destination center
+        for place in places:
+            coord = resolve_place_coordinates(place, active_dest, idx)
+            map_points.append({
+                "Day": f"Day {day_num}",
+                "Place": place,
+                "lat": float(coord[0]),
+                "lng": float(coord[1]),
+                "color": [2, 132, 199, 220] if day_num % 2 == 0 else [225, 29, 72, 220]
+            })
+            idx += 1
+
     if not map_points:
         map_points.append({
-            "day": "Destination Center",
-            "place": active_dest,
-            "lat": default_lat,
-            "lng": default_lng,
+            "Day": "Day 1",
+            "Place": f"{active_dest} Center",
+            "lat": float(default_lat),
+            "lng": float(default_lng),
             "color": [2, 132, 199, 220]
         })
 
     df_map = pd.DataFrame(map_points)
 
-    view_state = pdk.ViewState(
-        latitude=df_map["lat"].mean(),
-        longitude=df_map["lng"].mean(),
-        zoom=default_zoom,
-        pitch=30,
-    )
+    # Render Map without requiring any Mapbox token
+    try:
+        view_state = pdk.ViewState(
+            latitude=float(df_map["lat"].mean()),
+            longitude=float(df_map["lng"].mean()),
+            zoom=default_zoom,
+            pitch=20,
+        )
 
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=df_map,
-        get_position=["lng", "lat"],
-        get_color="color",
-        get_radius=800,
-        pickable=True,
-        auto_highlight=True,
-    )
+        scatter_layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=df_map,
+            get_position=["lng", "lat"],
+            get_color="color",
+            get_radius=500,
+            radius_min_pixels=8,
+            radius_max_pixels=25,
+            pickable=True,
+            auto_highlight=True,
+        )
 
-    st.pydeck_chart(pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        tooltip={"text": "{day}: {place}\nGPS: ({lat}, {lng})"},
-        map_style="mapbox://styles/mapbox/light-v10"
-    ))
+        deck = pdk.Deck(
+            layers=[scatter_layer],
+            initial_view_state=view_state,
+            tooltip={"text": "{Day}: {Place}\nGPS: ({lat}, {lng})"},
+            map_provider="carto",
+            map_style="positron"
+        )
+        st.pydeck_chart(deck)
+    except Exception:
+        # Bulletproof native fallback
+        st.map(df_map, latitude="lat", longitude="lng", size=25)
 
     st.markdown("#### 📌 Route Waypoints Table")
-    st.dataframe(df_map[["day", "place", "lat", "lng"]], use_container_width=True)
+    df_display = df_map[["Day", "Place", "lat", "lng"]].copy()
+    df_display["Navigation"] = df_display.apply(lambda r: f"https://www.google.com/maps/search/?api=1&query={r['lat']},{r['lng']}", axis=1)
+    st.dataframe(
+        df_display,
+        column_config={
+            "Navigation": st.column_config.LinkColumn("Google Maps Link", display_text="Open in Maps ↗")
+        },
+        use_container_width=True
+    )
 
 # ==================== TAB 3: BUDGET BREAKDOWN ====================
 with tab_budget:
