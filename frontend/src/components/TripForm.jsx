@@ -5,6 +5,7 @@ import {
   Building2, Car, Activity, TrendingDown, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import { KNOWN_DESTINATIONS } from '../services/destinationsData';
+import { getHotelsForDestination } from '../services/hotelsData.js';
 
 const INTEREST_OPTIONS = [
   { id: 'beach', label: 'Beach & Sun', emoji: '🏖️' },
@@ -462,6 +463,98 @@ export default function TripForm({ formData, setFormData, onSubmit, loading, err
                 );
               })}
             </div>
+
+            {/* Live Verified Hotel Discovery Grid for Selected Location & Preference */}
+            {(() => {
+              const curDest = formData.destination || 'Goa';
+              const curTier = formData.hotelPreference || 'standard';
+              const allDestHotels = getHotelsForDestination(curDest);
+              const tierHotels = allDestHotels.filter(
+                (h) => (h.tier || '').toLowerCase() === curTier.toLowerCase()
+              );
+              const displayHotels = tierHotels.length > 0 ? tierHotels : allDestHotels.slice(0, 4);
+
+              return (
+                <div className="mt-3.5 p-3.5 bg-sand/30 border border-sand-dark rounded-2xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+                    <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+                      <span>
+                        Verified Hotels in {curDest} • {curTier.toUpperCase()} Tier ({tierHotels.length} Options with Photos)
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-brand-700 font-semibold bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                      16 Properties Verified • Click to Select
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {displayHotels.map((h) => {
+                      const isSelected = formData.selectedHotelId === h.id;
+                      return (
+                        <div
+                          key={h.id}
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              selectedHotelId: h.id,
+                              selectedHotelName: h.name,
+                              customHotelRate: h.price_per_night,
+                              hotelPreference: h.tier,
+                            })
+                          }
+                          className={`cursor-pointer rounded-xl overflow-hidden border transition-all duration-200 flex flex-col bg-white ${
+                            isSelected
+                              ? 'border-brand-500 ring-2 ring-brand-500 shadow-md bg-brand-50/30'
+                              : 'border-sand-dark hover:border-brand-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="relative h-28 overflow-hidden bg-sand-dark">
+                            <img
+                              src={h.image_url}
+                              alt={h.name}
+                              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                              loading="lazy"
+                            />
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900/80 text-white backdrop-blur-sm shadow-sm">
+                              ⭐ {h.rating} ({h.reviews_count.toLocaleString()} reviews)
+                            </span>
+                            <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-600 text-white shadow-sm">
+                              ₹{h.price_per_night.toLocaleString('en-IN')}/nt
+                            </span>
+                          </div>
+                          <div className="p-2.5 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h4 className="text-xs font-bold text-ink line-clamp-1">{h.name}</h4>
+                              <p className="text-[11px] text-ink-muted truncate">📍 {h.area}</p>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {(h.amenities || []).slice(0, 2).map((am, i) => (
+                                  <span key={i} className="text-[9px] text-slate-600 bg-sand px-1.5 py-0.5 rounded">
+                                    ✓ {am}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-sand-dark flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase text-brand-700 bg-brand-100/70 px-1.5 py-0.5 rounded">
+                                {h.tier}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
+                                  isSelected ? 'bg-brand-600 text-white' : 'bg-sand text-ink'
+                                }`}
+                              >
+                                {isSelected ? '✓ Selected' : 'Choose Stay'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Row 4: Transportation Preference Selector */}

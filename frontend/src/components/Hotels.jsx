@@ -16,6 +16,7 @@ import {
 import HotelCard from './HotelCard';
 import { getHotelRecommendations } from '../services/api';
 import { buildItineraryRoute } from '../services/locationService';
+import { getHotelsForDestination } from '../services/hotelsData.js';
 
 export default function Hotels({ destinationData, destinationName, formData, tripPlan }) {
   const [hotels, setHotels] = useState([]);
@@ -33,6 +34,15 @@ export default function Hotels({ destinationData, destinationName, formData, tri
   const currentBudget = tripPlan?.budget_breakdown?.user_budget || formData?.budget || 50000;
   const currentTravelers = formData?.travelers || 2;
   const currentDays = tripPlan?.days?.length || formData?.days || 4;
+
+  // Auto-reset area & amenity filters when destination changes
+  useEffect(() => {
+    setSelectedArea('all');
+    setSelectedAmenities([]);
+    if (formData?.hotelPreference && formData.hotelPreference !== 'standard') {
+      setSelectedTier(formData.hotelPreference);
+    }
+  }, [currentDestination, formData?.hotelPreference]);
 
   // Extract itinerary places with coordinates using spatial service
   const itineraryPlaces = useMemo(() => {
@@ -66,7 +76,7 @@ export default function Hotels({ destinationData, destinationName, formData, tri
 
     const res = await getHotelRecommendations(params);
 
-    if (res.success && res.data?.hotels) {
+    if (res.success && res.data?.hotels && res.data.hotels.length > 0) {
       setHotels(res.data.hotels);
       setMetadata({
         targetBudget: res.data.target_nightly_room_budget,
@@ -75,21 +85,41 @@ export default function Hotels({ destinationData, destinationName, formData, tri
         totalFound: res.data.total_found,
       });
     } else {
-      // Graceful fallback to destinationData static hotels
-      const fallbackList = destinationData?.hotels || [];
-      const adapted = fallbackList.map((h) => ({
+      // Robust guaranteed fallback to verified hotels database (16 hotels per location)
+      const fallbackList = (destinationData?.hotels && destinationData.hotels.length > 0)
+        ? destinationData.hotels
+        : getHotelsForDestination(currentDestination);
+
+      let adapted = fallbackList.map((h) => ({
         ...h,
-        price_per_night: h.pricePerNight || 3500,
-        reviews_count: h.reviews || 1200,
-        area: h.location || currentDestination,
-        tier: (h.category || '').toLowerCase().includes('luxury')
+        id: h.id,
+        name: h.name,
+        price_per_night: h.price_per_night || h.pricePerNight || 3500,
+        reviews_count: h.reviews_count || h.reviews || 1200,
+        area: h.area || h.location || currentDestination,
+        tier: h.tier || ((h.category || '').toLowerCase().includes('luxury')
           ? 'luxury'
           : (h.category || '').toLowerCase().includes('boutique')
           ? 'premium'
-          : 'standard',
-        curator_note: `Curated choice in ${currentDestination}.`,
+          : 'standard'),
+        image_url: h.image_url || h.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80',
+        curator_note: h.curator_note || `Curated verified property in ${currentDestination}.`,
+        booking_url: h.booking_url || `https://www.google.com/travel/hotels/${encodeURIComponent((h.name || '') + ' ' + currentDestination)}`,
+        amenities: h.amenities || ['Free WiFi', 'Breakfast Included', 'Air Conditioning'],
         is_verified_database_record: true,
       }));
+
+      // Apply client-side tier filter if requested
+      if (selectedTier !== 'all') {
+        const tierFilter = adapted.filter((h) => (h.tier || '').toLowerCase() === selectedTier.toLowerCase());
+        if (tierFilter.length > 0) adapted = tierFilter;
+      }
+      // Apply area filter if requested
+      if (selectedArea !== 'all') {
+        const areaFilter = adapted.filter((h) => (h.area || '').toLowerCase().includes(selectedArea.toLowerCase()));
+        if (areaFilter.length > 0) adapted = areaFilter;
+      }
+
       setHotels(adapted);
       if (res.error) {
         setError(res.error);
@@ -108,7 +138,6 @@ export default function Hotels({ destinationData, destinationName, formData, tri
     hotels.forEach((h) => {
       const area = h.area || h.location;
       if (area) {
-        // Split if compound like "Sinquerim / Candolim"
         area.split('/').forEach((a) => {
           const trimmed = a.trim();
           if (trimmed.length > 2) set.add(trimmed);
@@ -134,10 +163,10 @@ export default function Hotels({ destinationData, destinationName, formData, tri
     );
   };
 
-  // Client-side filtering for selected amenities
+  // Client-side filtering for selected amenities with fallback guarantee
   const filteredHotels = useMemo(() => {
     if (selectedAmenities.length === 0) return hotels;
-    return hotels.filter((hotel) => {
+    const result = hotels.filter((hotel) => {
       const hotelAmenities = (hotel.amenities || []).map((a) => a.toLowerCase());
       return selectedAmenities.every((filter) => {
         const fLower = filter.toLowerCase();
@@ -150,6 +179,7 @@ export default function Hotels({ destinationData, destinationName, formData, tri
         return hotelAmenities.some((a) => a.includes(fLower));
       });
     });
+    return result.length > 0 ? result : hotels;
   }, [hotels, selectedAmenities]);
 
   const tierOptions = [

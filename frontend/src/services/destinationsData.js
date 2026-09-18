@@ -4,6 +4,8 @@
  * with adaptive fallbacks for other custom destinations.
  */
 
+import { getHotelsForDestination } from './hotelsData.js';
+
 export const KNOWN_DESTINATIONS = ['Goa', 'Kerala', 'Manali', 'Jaipur', 'Rishikesh'];
 
 export const DESTINATION_DETAILS = {
@@ -405,77 +407,55 @@ export const DESTINATION_DETAILS = {
  * Helper to get destination details with intelligent fallback for custom places
  */
 export function getDestinationData(destinationName) {
-  if (!destinationName) return DESTINATION_DETAILS.Goa;
-  
-  const normalized = destinationName.trim().toLowerCase();
+  const target = destinationName || 'Goa';
+  const normalized = target.trim().toLowerCase();
+  let baseData = null;
+  let matchedKey = 'Goa';
+
   for (const [key, val] of Object.entries(DESTINATION_DETAILS)) {
     if (key.toLowerCase() === normalized) {
-      return { ...val, destinationName: key };
+      baseData = { ...val, destinationName: key };
+      matchedKey = key;
+      break;
     }
   }
 
-  // Fallback for custom or international destination
-  return {
-    heroImage: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80',
-    tagline: `Discover the unforgettable wonders and vibrant culture of ${destinationName}`,
-    bestTimeToVisit: 'Year-round depending on preferred season',
-    hotels: [
-      {
-        id: 'cust-h1',
-        name: `Grand Central Resort & Spa, ${destinationName}`,
-        category: '4-Star Premium',
-        rating: 4.6,
-        reviews: 1420,
-        pricePerNight: 8500,
-        image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
-        location: `Prime Area, ${destinationName}`,
-        amenities: ['Swimming Pool', 'Fine Dining', 'Free Wi-Fi', 'Spa'],
-      },
-      {
-        id: 'cust-h2',
-        name: `Boutique Heritage Suites, ${destinationName}`,
-        category: 'Comfort & Style',
-        rating: 4.5,
-        reviews: 980,
-        pricePerNight: 4500,
-        image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80',
-        location: `City Center, ${destinationName}`,
-        amenities: ['Breakfast Included', 'Airport Shuttle', 'Terrace'],
-      },
-    ],
-    places: [
-      {
-        id: 'cust-p1',
-        name: `Iconic Landmark & Center of ${destinationName}`,
-        category: 'Sightseeing & Culture',
-        image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=600&q=80',
-        timing: '9:00 AM – 6:00 PM',
-        fee: 'Check local ticketing',
-        description: `The top historical or cultural site in ${destinationName}, celebrating local architecture.`,
-        tip: 'Visit in the early hours to avoid crowds.',
-      },
-      {
-        id: 'cust-p2',
-        name: `Local Market & Street Delights of ${destinationName}`,
-        category: 'Food & Shopping',
-        image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-        timing: '10:00 AM – 10:00 PM',
-        fee: 'Free entry',
-        description: 'Vibrant local stalls with authentic local cuisine, handicrafts, and souvenirs.',
-        tip: 'Carry small local currency denominations for market vendors.',
-      },
-    ],
-    packages: [
-      {
-        id: 'cust-pkg1',
-        title: `Explore ${destinationName} All-Inclusive Holiday`,
-        duration: '4 Nights / 5 Days',
-        price: 21999,
-        originalPrice: 28000,
-        badge: 'Custom Tour',
-        image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=600&q=80',
-        inclusions: ['4-Star Hotel Accommodation', 'Daily Breakfast & Dinner', 'Full Day City Tour Cab', 'Sightseeing Tickets', 'Airport Transfers'],
-      },
-    ],
-  };
+  if (!baseData) {
+    baseData = {
+      heroImage: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80',
+      tagline: `Discover the unforgettable wonders and vibrant culture of ${destinationName}`,
+      bestTimeToVisit: 'Year-round depending on preferred season',
+      destinationName: target,
+      hotels: [],
+      places: [],
+      packages: [],
+    };
+  }
+
+  // Enrich with verified 80-hotel database for authentic photography, rates & ratings
+  const verified = getHotelsForDestination(matchedKey || target);
+  if (verified && verified.length > 0) {
+    baseData.hotels = verified.map((h) => ({
+      id: h.id,
+      name: h.name,
+      category: `${h.tier.toUpperCase()} • ${h.area}`,
+      rating: h.rating,
+      reviews: h.reviews_count,
+      reviews_count: h.reviews_count,
+      pricePerNight: h.price_per_night,
+      price_per_night: h.price_per_night,
+      image: h.image_url,
+      image_url: h.image_url,
+      location: h.area,
+      area: h.area,
+      amenities: h.amenities,
+      tier: h.tier,
+      curator_note: h.curator_note,
+      booking_url: h.booking_url,
+      coordinates: h.coordinates,
+      is_verified_database_record: true,
+    }));
+  }
+
+  return baseData;
 }

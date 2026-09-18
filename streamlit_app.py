@@ -526,8 +526,22 @@ if "chat_messages" not in st.session_state:
         {"role": "assistant", "content": "Hi! I am your TripGenie AI travel assistant. Ask me anything about itineraries, local foods, hidden gems, or budget tips!"}
     ]
 
-# ----------------- SIDEBAR CONTROLS & DIAGNOSTICS -----------------
+# ----------------- DESTINATION CHANGE SYNCHRONIZATION & CLEANUP -----------------
 current_dest = st.session_state.get("destination", "Goa")
+if st.session_state.get("_prev_destination") != current_dest:
+    st.session_state["_prev_destination"] = current_dest
+    st.session_state["trip_plan"] = None
+    cur_hid = st.session_state.get("selected_hotel_id")
+    if cur_hid:
+        belongs = any(h["id"] == cur_hid and h["destination"].lower() == current_dest.lower() for h in VERIFIED_HOTELS)
+        if not belongs:
+            st.session_state["selected_hotel_id"] = None
+    if "hotel_tab_area_filter" in st.session_state:
+        del st.session_state["hotel_tab_area_filter"]
+    if "hotel_tab_tier_filter" in st.session_state:
+        del st.session_state["hotel_tab_tier_filter"]
+
+# ----------------- SIDEBAR CONTROLS & DIAGNOSTICS -----------------
 vis = DEST_VISUALS.get(current_dest, DEST_VISUALS["Goa"])
 
 with st.sidebar:
@@ -618,6 +632,10 @@ for d_name, d_label, d_sub, d_col in d_btns:
                 st.session_state["destination"] = d_name
                 st.session_state["selected_hotel_id"] = None
                 st.session_state["trip_plan"] = None
+                if "hotel_tab_area_filter" in st.session_state:
+                    del st.session_state["hotel_tab_area_filter"]
+                if "hotel_tab_tier_filter" in st.session_state:
+                    del st.session_state["hotel_tab_tier_filter"]
                 st.rerun()
 
 # ----------------- DYNAMIC LANDMARK HIGHLIGHTS GALLERY -----------------
@@ -673,10 +691,15 @@ with st.container():
 
         # Row 2.5: Specific Hotel Property Selection for selected destination
         dest_hotels = [h for h in VERIFIED_HOTELS if h["destination"].lower() == dest_input.strip().lower()]
+        matching_tier_hotels = [h for h in dest_hotels if h["tier"].lower() == tier_input.lower()]
+        other_tier_hotels = [h for h in dest_hotels if h["tier"].lower() != tier_input.lower()]
+        ordered_dest_hotels = matching_tier_hotels + other_tier_hotels
+
         hotel_select_map = {f"✨ Auto-Recommend Best Verified Property ({tier_input.capitalize()} Tier)": None}
-        for h in dest_hotels:
+        for h in ordered_dest_hotels:
             t_tag = h['tier'].upper()
-            h_opt_label = f"{h['name']} • ₹{int(h['price_per_night']):,}/night • ⭐ {h['rating']} ({h['area']}) [{t_tag}]"
+            star_prefix = "⭐ " if h["tier"].lower() == tier_input.lower() else ""
+            h_opt_label = f"{star_prefix}{h['name']} • ₹{int(h['price_per_night']):,}/nt • ⭐ {h['rating']} ({h['area']}) [{t_tag}]"
             hotel_select_map[h_opt_label] = h["id"]
 
         cur_h_id = st.session_state.get("selected_hotel_id")
@@ -694,6 +717,29 @@ with st.container():
             help="Select the exact hotel of your choice from our verified database with authentic photos and rates."
         )
         form_chosen_hotel_id = hotel_select_map[selected_hotel_choice]
+
+        # Live Hotel Preview Card inside Form
+        chosen_preview = next((h for h in dest_hotels if h["id"] == form_chosen_hotel_id), None)
+        if not chosen_preview and matching_tier_hotels:
+            chosen_preview = matching_tier_hotels[0]
+        elif not chosen_preview and dest_hotels:
+            chosen_preview = dest_hotels[0]
+
+        if chosen_preview:
+            amenities_str = " • ".join(chosen_preview.get("amenities", [])[:3])
+            st.markdown(f"""
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:10px 14px; margin-top:6px; margin-bottom:12px; display:flex; gap:14px; align-items:center;">
+                <img src="{chosen_preview['image_url']}" style="width:110px; height:75px; object-fit:cover; border-radius:8px;" />
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; color:#0F172A; font-size:0.95rem;">{chosen_preview['name']}</span>
+                        <span style="background:#E0F2FE; color:#0369A1; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">{chosen_preview['tier'].upper()}</span>
+                    </div>
+                    <div style="color:#64748B; font-size:0.8rem; margin:2px 0;">📍 {chosen_preview['area']} • ⭐ <b>{chosen_preview['rating']}/5.0</b> ({chosen_preview['reviews_count']:,} reviews)</div>
+                    <div style="color:#0284C7; font-size:0.9rem; font-weight:700;">₹{int(chosen_preview['price_per_night']):,}/night <span style="font-size:0.78rem; font-weight:400; color:#64748B;">• {amenities_str}</span></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
         # Row 3: Curated Destination Activities
         dest_key = dest_input.strip().lower()
@@ -729,6 +775,10 @@ with st.container():
             chosen_obj = next((h for h in VERIFIED_HOTELS if h["id"] == form_chosen_hotel_id), None)
             if chosen_obj:
                 st.session_state["hotel_tier"] = chosen_obj["tier"]
+        if "hotel_tab_area_filter" in st.session_state:
+            del st.session_state["hotel_tab_area_filter"]
+        if "hotel_tab_tier_filter" in st.session_state:
+            del st.session_state["hotel_tab_tier_filter"]
         st.session_state["trip_plan"] = None
         if dest_changed:
             st.rerun()
@@ -1041,6 +1091,33 @@ with tab_hotels:
     st.markdown(f"### 🏨 Verified Hotel Intelligence & Selection Portal: {active_dest}")
     st.caption(f"Browse authentic, verified properties across all tiers in {active_dest} with live photography, verified guest ratings, and direct booking links. Select your favorite hotel to lock it into your trip plan and budget.")
 
+    # Location switcher directly inside Hotel Explorer
+    st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#475569; margin-bottom:8px;'>📍 SWITCH DESTINATION TO EXPLORE VERIFIED HOTELS:</p>", unsafe_allow_html=True)
+    ht_c1, ht_c2, ht_c3, ht_c4, ht_c5 = st.columns(5)
+    tab_d_btns = [
+        ("Goa", "🏖️ Goa Hotels", ht_c1),
+        ("Kerala", "🌴 Kerala Hotels", ht_c2),
+        ("Manali", "🏔️ Manali Hotels", ht_c3),
+        ("Jaipur", "🏰 Jaipur Hotels", ht_c4),
+        ("Rishikesh", "🧘‍♂️ Rishikesh Hotels", ht_c5),
+    ]
+    for td_name, td_label, td_col in tab_d_btns:
+        with td_col:
+            is_active_t = (active_dest.lower() == td_name.lower())
+            btn_t_type = "primary" if is_active_t else "secondary"
+            if st.button(td_label, type=btn_t_type, use_container_width=True, key=f"tab_hotel_dest_{td_name}"):
+                if st.session_state["destination"] != td_name:
+                    st.session_state["destination"] = td_name
+                    st.session_state["selected_hotel_id"] = None
+                    if "hotel_tab_area_filter" in st.session_state:
+                        del st.session_state["hotel_tab_area_filter"]
+                    if "hotel_tab_tier_filter" in st.session_state:
+                        del st.session_state["hotel_tab_tier_filter"]
+                    st.session_state["trip_plan"] = None
+                    st.rerun()
+
+    st.write("")
+
     # Active Selection Banner
     if active_hotel_obj:
         st.markdown(f"""
@@ -1059,37 +1136,48 @@ with tab_hotels:
         """, unsafe_allow_html=True)
 
     # Interactive Filter Controls
+    all_dest_hotels = [h for h in VERIFIED_HOTELS if h["destination"].lower() == active_dest.lower()]
+    distinct_areas = sorted(list(set(h["area"] for h in all_dest_hotels)))
+    area_options = ["All Areas & Neighborhoods"] + distinct_areas
+
+    # Safe verification of area filter state
+    if st.session_state.get("hotel_tab_area_filter") not in area_options:
+        st.session_state["hotel_tab_area_filter"] = "All Areas & Neighborhoods"
+
+    tier_options = [
+        "All Tiers (Show All 16+ Hotels)",
+        "Hostel (₹600 - ₹950)",
+        "Budget (₹1,900 - ₹3,200)",
+        "Standard (₹3,200 - ₹4,800)",
+        "Premium (₹6,800 - ₹9,800)",
+        "Luxury (₹11,000 - ₹35,000)"
+    ]
+    tier_mapping = {
+        "All Tiers (Show All 16+ Hotels)": "all",
+        "Hostel (₹600 - ₹950)": "hostel",
+        "Budget (₹1,900 - ₹3,200)": "budget",
+        "Standard (₹3,200 - ₹4,800)": "standard",
+        "Premium (₹6,800 - ₹9,800)": "premium",
+        "Luxury (₹11,000 - ₹35,000)": "luxury"
+    }
+
+    if st.session_state.get("hotel_tab_tier_filter") not in tier_options:
+        def_match = tier_options[0]
+        for opt in tier_options:
+            if active_tier in opt.lower():
+                def_match = opt
+                break
+        st.session_state["hotel_tab_tier_filter"] = def_match
+
     f_col1, f_col2, f_col3 = st.columns([1.5, 1.5, 1.2])
     with f_col1:
-        tier_options = [
-            "All Tiers (Show All 16+ Hotels)",
-            "Hostel (₹600 - ₹950)",
-            "Budget (₹1,900 - ₹3,200)",
-            "Standard (₹3,200 - ₹4,800)",
-            "Premium (₹6,800 - ₹9,800)",
-            "Luxury (₹11,000 - ₹35,000)"
-        ]
-        tier_mapping = {
-            "All Tiers (Show All 16+ Hotels)": "all",
-            "Hostel (₹600 - ₹950)": "hostel",
-            "Budget (₹1,900 - ₹3,200)": "budget",
-            "Standard (₹3,200 - ₹4,800)": "standard",
-            "Premium (₹6,800 - ₹9,800)": "premium",
-            "Luxury (₹11,000 - ₹35,000)": "luxury"
-        }
-        def_tier_idx = 0
-        for idx, (t_lbl, t_val) in enumerate(tier_mapping.items()):
-            if t_val == active_tier:
-                def_tier_idx = idx
-                break
+        def_tier_idx = tier_options.index(st.session_state["hotel_tab_tier_filter"]) if st.session_state["hotel_tab_tier_filter"] in tier_options else 0
         selected_tier_label = st.selectbox("🏷️ Filter by Hotel Preference / Tier:", tier_options, index=def_tier_idx, key="hotel_tab_tier_filter")
         chosen_tier_filter = tier_mapping[selected_tier_label]
 
     with f_col2:
-        all_dest_hotels = [h for h in VERIFIED_HOTELS if h["destination"].lower() == active_dest.lower()]
-        distinct_areas = sorted(list(set(h["area"] for h in all_dest_hotels)))
-        area_options = ["All Areas & Neighborhoods"] + distinct_areas
-        selected_area_choice = st.selectbox("📍 Filter by Area / Neighborhood:", area_options, index=0, key="hotel_tab_area_filter")
+        def_area_idx = area_options.index(st.session_state["hotel_tab_area_filter"]) if st.session_state["hotel_tab_area_filter"] in area_options else 0
+        selected_area_choice = st.selectbox("📍 Filter by Area / Neighborhood:", area_options, index=def_area_idx, key="hotel_tab_area_filter")
         chosen_area_filter = None if selected_area_choice == "All Areas & Neighborhoods" else selected_area_choice
 
     with f_col3:
@@ -1113,6 +1201,10 @@ with tab_hotels:
         sort_by=chosen_sort
     )
     hotels = hotels_res.get("hotels", [])
+
+    # Guaranteed fallback: if strict filter resulted in 0 hotels, return all destination hotels so options are always visible
+    if not hotels:
+        hotels = all_dest_hotels
 
     st.markdown(f"<p style='color:#64748B; font-size:0.9rem; margin-bottom:16px;'>Found <b>{len(hotels)} verified properties</b> in {active_dest} matching criteria with live high-res photography:</p>", unsafe_allow_html=True)
 
