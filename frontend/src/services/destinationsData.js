@@ -187,7 +187,7 @@ export const DESTINATION_DETAILS = {
         id: 'kp3',
         name: 'Fort Kochi Heritage & Chinese Fishing Nets',
         category: 'Colonial History & Art',
-        image: 'https://images.unsplash.com/photo-1578321272176-b7bbc067950f?auto=format&fit=crop&w=600&q=80',
+        image: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=600&q=80',
         timing: 'Open daily',
         fee: 'Free entry',
         description: 'Port town blend of Portuguese, Dutch, and British history alongside quirky cafes and antique shops.',

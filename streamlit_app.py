@@ -144,6 +144,109 @@ st.markdown("""
         margin-bottom: 4px;
         display: inline-block;
     }
+
+    /* Enhanced Image Styling */
+    div[data-testid="stImage"] img {
+        border-radius: 16px;
+        box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12);
+        object-fit: cover;
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stImage"] img:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.18);
+    }
+
+    /* Hero Left Box */
+    .hero-left-box {
+        background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .dest-gradient {
+        background: linear-gradient(135deg, #0284C7 0%, #2563EB 50%, #7C3AED 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+    }
+
+    .hero-tagline {
+        font-size: 1.05rem;
+        color: #475569;
+        margin: 12px 0 18px 0;
+        line-height: 1.55;
+    }
+
+    /* Meta Chips */
+    .hero-badges-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+    .hero-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #F1F5F9;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        color: #1E293B;
+    }
+
+    /* Landmark Photo Cards */
+    .landmark-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 12px;
+        margin-top: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+    }
+    .landmark-card:hover {
+        border-color: #38BDF8;
+        box-shadow: 0 6px 16px rgba(14, 165, 233, 0.12);
+    }
+
+    .landmark-badge {
+        display: inline-block;
+        background: #E0F2FE;
+        color: #0369A1;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .live-pulse {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #10B981;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulse 1.6s infinite;
+        margin-right: 4px;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,6 +262,195 @@ try:
 except Exception as e:
     BACKEND_LOADED = False
     BACKEND_ERROR = str(e)
+
+# ----------------- DESTINATION VISUAL INTELLIGENCE (LIVE PHOTOS) -----------------
+DEST_VISUALS = {
+    "Goa": {
+        "title": "Goa",
+        "state": "Coastal Paradise, India",
+        "tagline": "Sun-kissed golden beaches, Portuguese colonial heritage & vibrant coastal nightlife.",
+        "badge": "Beach & Sunset Capital",
+        "best_time": "Nov to Feb",
+        "ideal_duration": "4 - 5 Days",
+        "avg_temp": "28°C • Warm Coastal",
+        "vibe": "Relaxed & Festive",
+        "hero_img": "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1600&auto=format&fit=crop&q=85",
+        "highlights": [
+            {
+                "name": "Baga & Calangute Coast",
+                "category": "Beach & Watersports",
+                "img": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80",
+                "desc": "Parasailing, jet skis, dolphin spotting, and lively beachfront shacks."
+            },
+            {
+                "name": "Fort Aguada & Lighthouse",
+                "category": "17th-Century Fortress",
+                "img": "https://images.unsplash.com/photo-1587922546307-776227941871?w=800&auto=format&fit=crop&q=80",
+                "desc": "Historic Portuguese fortress overlooking the Mandovi River & Arabian Sea."
+            },
+            {
+                "name": "Basilica of Bom Jesus",
+                "category": "UNESCO World Heritage",
+                "img": "https://images.unsplash.com/photo-1587474260584-136574528ed5?w=800&auto=format&fit=crop&q=80",
+                "desc": "Baroque architecture enshrining the sacred relics of St. Francis Xavier."
+            },
+            {
+                "name": "Palolem Crescent Bay",
+                "category": "Scenic South Coast",
+                "img": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&auto=format&fit=crop&q=80",
+                "desc": "Tranquil sapphire waters, swaying palms, and colorful beachfront cottages."
+            }
+        ]
+    },
+    "Kerala": {
+        "title": "Kerala",
+        "state": "God's Own Country, India",
+        "tagline": "Emerald backwaters, mist-laden Munnar tea hills & tranquil Ayurvedic wellness.",
+        "badge": "Tropical Eco Paradise",
+        "best_time": "Sep to Mar",
+        "ideal_duration": "5 - 7 Days",
+        "avg_temp": "27°C • Tropical & Pleasant",
+        "vibe": "Serene & Rejuvenating",
+        "hero_img": "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1600&auto=format&fit=crop&q=85",
+        "highlights": [
+            {
+                "name": "Alleppey Backwaters",
+                "category": "Signature Houseboat Cruise",
+                "img": "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?w=800&auto=format&fit=crop&q=80",
+                "desc": "Gliding past peaceful lagoons, village canals, and lush paddy fields."
+            },
+            {
+                "name": "Munnar Tea Estates",
+                "category": "Misty Mountain Valley",
+                "img": "https://images.unsplash.com/photo-1596401057633-54a8fe8ef647?w=800&auto=format&fit=crop&q=80",
+                "desc": "Endless rolling green tea plantations and crisp alpine mountain air."
+            },
+            {
+                "name": "Fort Kochi Heritage",
+                "category": "Colonial Coastal Port",
+                "img": "https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80",
+                "desc": "Historic Chinese fishing nets, Portuguese quarters, and spice markets."
+            },
+            {
+                "name": "Varkala Cliff Beach",
+                "category": "Arabian Sea Clifftop",
+                "img": "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&auto=format&fit=crop&q=80",
+                "desc": "Dramatic red laterite cliffs overlooking golden sands and sunset cafes."
+            }
+        ]
+    },
+    "Manali": {
+        "title": "Manali",
+        "state": "Himachal Pradesh, Himalayas",
+        "tagline": "Snowy Himalayan peaks, roaring Beas river rapids & pine valley serenity.",
+        "badge": "Adventure & Mountain Gateway",
+        "best_time": "Oct - Feb (Snow) • Mar - Jun (Summer)",
+        "ideal_duration": "4 - 5 Days",
+        "avg_temp": "12°C • Cool Mountain Climate",
+        "vibe": "Adventurous & Scenic",
+        "hero_img": "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=1600&auto=format&fit=crop&q=85",
+        "highlights": [
+            {
+                "name": "Solang Snow Valley",
+                "category": "Adventure & Paragliding",
+                "img": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80",
+                "desc": "Ski slopes, paragliding over glaciers, and panoramic Himalayan summits."
+            },
+            {
+                "name": "Hadimba Devi Temple",
+                "category": "Ancient Cedar Shrine",
+                "img": "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&auto=format&fit=crop&q=80",
+                "desc": "16th-century wooden pagoda temple nestled among ancient deodar forests."
+            },
+            {
+                "name": "Atal Tunnel & Sissu",
+                "category": "Engineering Marvel & Lahaul",
+                "img": "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800&auto=format&fit=crop&q=80",
+                "desc": "World's longest highway tunnel at 10,000 ft connecting to snowy Sissu."
+            },
+            {
+                "name": "Old Manali Riverside",
+                "category": "Bohemian Cafe Culture",
+                "img": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80",
+                "desc": "Riverside stone cottages, live acoustic music, fresh trout, and bakeries."
+            }
+        ]
+    },
+    "Jaipur": {
+        "title": "Jaipur",
+        "state": "The Pink City, Rajasthan",
+        "tagline": "Majestic hilltop fortresses, royal Rajput palaces & colorful cultural bazaars.",
+        "badge": "Royal Heritage Capital",
+        "best_time": "Oct to Mar",
+        "ideal_duration": "3 - 4 Days",
+        "avg_temp": "24°C • Dry & Royal",
+        "vibe": "Grand & Historical",
+        "hero_img": "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=1600&auto=format&fit=crop&q=85",
+        "highlights": [
+            {
+                "name": "Amber Fort & Sheesh Mahal",
+                "category": "UNESCO Hilltop Fortress",
+                "img": "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&auto=format&fit=crop&q=80",
+                "desc": "Imposing ramparts, mirror palace, and sweeping views of Maota Lake."
+            },
+            {
+                "name": "Hawa Mahal (Palace of Winds)",
+                "category": "Pink Sandstone Architecture",
+                "img": "https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800&auto=format&fit=crop&q=80",
+                "desc": "953 intricately carved jharokha windows built for royal court ladies."
+            },
+            {
+                "name": "Royal City Palace",
+                "category": "Living Rajput Palace",
+                "img": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80",
+                "desc": "Splendid courtyards, Mughal-Rajput art, museum, and royal residence."
+            },
+            {
+                "name": "Nahargarh Fort Ridge",
+                "category": "Sunset Panoramic View",
+                "img": "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&auto=format&fit=crop&q=80",
+                "desc": "Breathtaking twilight vistas overlooking the illuminated Pink City below."
+            }
+        ]
+    },
+    "Rishikesh": {
+        "title": "Rishikesh",
+        "state": "Devbhoomi, Uttarakhand",
+        "tagline": "Yoga capital of the world, sacred evening Ganga Aarti & thrilling river rapids.",
+        "badge": "Spiritual & Adventure Capital",
+        "best_time": "Sep to May",
+        "ideal_duration": "3 - 4 Days",
+        "avg_temp": "22°C • Fresh Mountain Air",
+        "vibe": "Soulful & High-Energy",
+        "hero_img": "https://images.unsplash.com/photo-1544717305-2782549b5136?w=1600&auto=format&fit=crop&q=85",
+        "highlights": [
+            {
+                "name": "White-Water River Rafting",
+                "category": "Grade III & IV Rapids",
+                "img": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&auto=format&fit=crop&q=80",
+                "desc": "Tackling thrilling Holy Ganges rapids through Himalayan river canyons."
+            },
+            {
+                "name": "Triveni Ghat Evening Aarti",
+                "category": "Sacred Maha Aarti",
+                "img": "https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80",
+                "desc": "Hundreds of floating oil lamps and Vedic chants resonating at sunset."
+            },
+            {
+                "name": "Ram & Laxman Jhula",
+                "category": "Iconic Suspension Bridge",
+                "img": "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&auto=format&fit=crop&q=80",
+                "desc": "Historic suspension footbridge connecting ashrams across the emerald river."
+            },
+            {
+                "name": "The Beatles Ashram",
+                "category": "Forest Meditation Domes",
+                "img": "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&auto=format&fit=crop&q=80",
+                "desc": "Tranquil Rajaji forest sanctuary where legendary melodies were composed."
+            }
+        ]
+    }
+}
 
 # ----------------- GPS COORDINATES REGISTRY -----------------
 DEST_CENTERS = {
@@ -232,16 +524,22 @@ if "chat_messages" not in st.session_state:
     ]
 
 # ----------------- SIDEBAR CONTROLS & DIAGNOSTICS -----------------
+current_dest = st.session_state.get("destination", "Goa")
+vis = DEST_VISUALS.get(current_dest, DEST_VISUALS["Goa"])
+
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800&auto=format&fit=crop&q=80", use_container_width=True)
+    st.image(vis["hero_img"], caption=f"📍 {vis['title']} • {vis['badge']}", use_container_width=True)
     st.title("🧞‍♂️ TripGenie AI")
     st.caption("RAG-Grounded Travel Planner • Final Year B.Tech Project")
 
     st.markdown("### 🔑 AI Model Key")
     anthropic_key = ""
-    if "ANTHROPIC_API_KEY" in st.secrets:
-        anthropic_key = st.secrets["ANTHROPIC_API_KEY"]
-    elif os.getenv("ANTHROPIC_API_KEY"):
+    try:
+        if "ANTHROPIC_API_KEY" in st.secrets:
+            anthropic_key = st.secrets["ANTHROPIC_API_KEY"]
+    except Exception:
+        pass
+    if not anthropic_key and os.getenv("ANTHROPIC_API_KEY"):
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
     
     user_api_key = st.text_input(
@@ -250,7 +548,7 @@ with st.sidebar:
         type="password",
         help="Paste your Claude 3.5 Sonnet key from console.anthropic.com. If blank, offline RAG heuristics will be utilized automatically."
     )
-    if user_api_key:
+    if user_api_key and isinstance(user_api_key, str):
         os.environ["ANTHROPIC_API_KEY"] = user_api_key
 
     st.divider()
@@ -266,46 +564,73 @@ with st.sidebar:
     st.markdown("- [React 19 Frontend (Vercel)](https://github.com/sarapnayan-svg/TRIPGENIE-AI#frontend-deployment)")
     st.markdown("- [IEEE Research Paper (PDF)](https://github.com/sarapnayan-svg/TRIPGENIE-AI/blob/main/docs/TripGenie_AI_Research_Paper.pdf)")
 
-# ----------------- HERO SECTION (MATCHES REACT HERO) -----------------
-st.markdown("""
-<div class="hero-container">
-    <div class="hero-pill">
-        <span>⚡</span>
-        <span>Intelligent AI Travel Planner • RAG Grounded</span>
+# ----------------- DYNAMIC LIVE HERO SECTION -----------------
+hero_c1, hero_c2 = st.columns([1.25, 1], gap="medium")
+with hero_c1:
+    st.markdown(f"""
+    <div class="hero-left-box">
+        <div class="hero-pill">
+            <span class="live-pulse"></span>
+            <span>⚡ Intelligent AI Travel Planner • RAG Grounded</span>
+        </div>
+        <div class="hero-heading" style="text-align:left; font-size:2.4rem; margin-bottom:10px; line-height:1.2;">
+            Explore <span class="dest-gradient">{vis['title']}</span> with AI
+        </div>
+        <p class="hero-tagline">{vis['tagline']}</p>
+        <div class="hero-badges-row">
+            <div class="hero-meta-chip"><span>📍</span> <b>{vis['state']}</b></div>
+            <div class="hero-meta-chip"><span>📅</span> <b>Best: {vis['best_time']}</b></div>
+            <div class="hero-meta-chip"><span>⏱️</span> <b>{vis['ideal_duration']}</b></div>
+            <div class="hero-meta-chip"><span>🌡️</span> <b>{vis['avg_temp']}</b></div>
+            <div class="hero-meta-chip"><span>✨</span> <b>Vibe: {vis['vibe']}</b></div>
+        </div>
     </div>
-    <div class="hero-heading">
-        Plan Your Perfect Trip with <span>Intelligent AI</span>
-    </div>
-    <div class="hero-desc">
-        Experience verifiable travel intelligence. TripGenie AI combines <strong>Large Language Models</strong> with a specialized <strong>Retrieval-Augmented Generation (RAG)</strong> knowledge base to craft tailor-made itineraries, exact budget breakdowns, and live weather forecasts without hallucinations.
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with hero_c2:
+    st.image(
+        vis["hero_img"],
+        caption=f"📸 Live View: {vis['title']} • {vis['badge']}",
+        use_container_width=True
+    )
 
 # Quick Destination Selectors (Interactive Buttons)
-st.markdown("<p style='text-align:center; font-weight:700; color:#64748B; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;'>📍 Explore Top Grounded Destinations:</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; font-weight:700; color:#475569; font-size:0.88rem; text-transform:uppercase; letter-spacing:0.06em; margin:22px 0 10px 0;'>📍 Explore Top Grounded Destinations (Click to Switch Live Photos & Plan):</p>", unsafe_allow_html=True)
 
 col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns(5)
-with col_d1:
-    if st.button("🏖️ Goa\nBeaches & Nightlife", use_container_width=True):
-        st.session_state["destination"] = "Goa"
-        st.rerun()
-with col_d2:
-    if st.button("🌴 Kerala\nBackwaters & Hills", use_container_width=True):
-        st.session_state["destination"] = "Kerala"
-        st.rerun()
-with col_d3:
-    if st.button("🏔️ Manali\nSnow & Adventure", use_container_width=True):
-        st.session_state["destination"] = "Manali"
-        st.rerun()
-with col_d4:
-    if st.button("🏰 Jaipur\nPalaces & Heritage", use_container_width=True):
-        st.session_state["destination"] = "Jaipur"
-        st.rerun()
-with col_d5:
-    if st.button("🧘‍♂️ Rishikesh\nYoga & Rafting", use_container_width=True):
-        st.session_state["destination"] = "Rishikesh"
-        st.rerun()
+d_btns = [
+    ("Goa", "🏖️ Goa", "Beaches & Sunsets", col_d1),
+    ("Kerala", "🌴 Kerala", "Backwaters & Hills", col_d2),
+    ("Manali", "🏔️ Manali", "Snow & Adventure", col_d3),
+    ("Jaipur", "🏰 Jaipur", "Palaces & Forts", col_d4),
+    ("Rishikesh", "🧘‍♂️ Rishikesh", "Yoga & Rafting", col_d5),
+]
+for d_name, d_label, d_sub, d_col in d_btns:
+    with d_col:
+        is_active = (current_dest == d_name)
+        btn_type = "primary" if is_active else "secondary"
+        btn_caption = f"⭐ {d_label}" if is_active else d_label
+        if st.button(f"{btn_caption}\n{d_sub}", type=btn_type, use_container_width=True, key=f"quick_dest_{d_name}"):
+            if st.session_state["destination"] != d_name:
+                st.session_state["destination"] = d_name
+                st.session_state["trip_plan"] = None
+                st.rerun()
+
+# ----------------- DYNAMIC LANDMARK HIGHLIGHTS GALLERY -----------------
+st.markdown(f"### 📸 Live Landmark Photography & Scenic Highlights: {vis['title']}")
+st.caption(f"Authentic visual highlights from verified GPS waypoints in {vis['state']}.")
+
+p_cols = st.columns(4)
+for i, hl in enumerate(vis["highlights"]):
+    with p_cols[i]:
+        st.image(hl["img"], use_container_width=True)
+        st.markdown(f"""
+        <div class="landmark-card">
+            <span class="landmark-badge">{hl['category']}</span>
+            <h4 style="margin:6px 0 4px 0; font-size:0.95rem; color:#0F172A; font-weight:700;">{hl['name']}</h4>
+            <p style="color:#64748B; font-size:0.8rem; line-height:1.45; margin:0;">{hl['desc']}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 st.write("")
 
@@ -363,6 +688,7 @@ with st.container():
         generate_submitted = st.form_submit_button("✨ Generate Grounded Itinerary", type="primary", use_container_width=True)
 
     if generate_submitted:
+        dest_changed = (st.session_state["destination"] != dest_input)
         st.session_state["destination"] = dest_input
         st.session_state["days"] = days_input
         st.session_state["travelers"] = travelers_input
@@ -370,6 +696,9 @@ with st.container():
         st.session_state["travel_style"] = style_input
         st.session_state["hotel_tier"] = tier_input
         st.session_state["transport_pref"] = trans_input
+        st.session_state["trip_plan"] = None
+        if dest_changed:
+            st.rerun()
 
 # ----------------- ITINERARY GENERATION & STATE UPDATE -----------------
 active_dest = st.session_state["destination"]

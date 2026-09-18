@@ -319,10 +319,12 @@ export default function App() {
       />
 
       <main className="flex-1">
-        {/* 2. Hero Section */}
+        {/* 2. Hero Section with Live Destination Photography */}
         <Hero
           onSelectDestination={handleSelectDestination}
           onStartPlanning={handleStartPlanning}
+          selectedDestination={formData.destination}
+          destinationData={destinationData}
         />
 
         {/* 3. Trip Planning Form & 4. PLAN MY TRIP Button */}
