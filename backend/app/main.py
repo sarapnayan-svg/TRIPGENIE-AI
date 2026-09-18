@@ -13,9 +13,11 @@ Endpoints:
     POST /api/chat                 -- RAG-grounded follow-up chat about a trip
 """
 import os
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, status, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -65,9 +67,9 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-def root():
-    """Root metadata endpoint for cloud health status and documentation discovery."""
+@app.get("/api")
+def api_root():
+    """API metadata endpoint for cloud health status and documentation discovery."""
     return {
         "name": "TripGenie AI API",
         "version": "1.0.0",
@@ -578,6 +580,37 @@ def export_trip_pdf_endpoint(payload: Dict[str, Any]):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate travel itinerary PDF: {str(e)}"
         )
+
+
+# ==================== STATIC REACT SPA MOUNT ====================
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
+
+if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
+    if (FRONTEND_DIST / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="static_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Pass through API and docs endpoints
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path == "openapi.json":
+            raise HTTPException(status_code=404, detail="API route not found")
+
+        candidate_file = FRONTEND_DIST / full_path
+        if full_path and candidate_file.exists() and candidate_file.is_file():
+            return FileResponse(candidate_file)
+
+        return FileResponse(FRONTEND_DIST / "index.html")
+else:
+    @app.get("/")
+    def fallback_root():
+        return {
+            "name": "TripGenie AI API",
+            "version": "1.0.0",
+            "status": "online",
+            "health": "/api/health",
+            "docs": "/docs",
+        }
 
 
 if __name__ == "__main__":

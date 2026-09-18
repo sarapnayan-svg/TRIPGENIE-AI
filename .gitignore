@@ -5,9 +5,9 @@
 
 # Node dependencies and build
 **/node_modules/
-**/dist/
 **/dist-ssr/
 *.local
+!frontend/dist/**
 
 # Python artifacts
 **/__pycache__/
