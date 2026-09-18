@@ -1,0 +1,22 @@
+# Secrets and Local Configurations
+**/.env
+**/.env.*
+!**/.env.example
+
+# Node dependencies and build
+**/node_modules/
+**/dist/
+**/dist-ssr/
+*.local
+
+# Python artifacts
+**/__pycache__/
+**/*.py[cod]
+**/*.db
+**/*.sqlite3
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
